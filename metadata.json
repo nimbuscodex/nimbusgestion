@@ -1,0 +1,7 @@
+{
+  "name": "Nimbuscodex Gestión",
+  "description": "CRM comercial y laboratorio de prospección inteligente para agencias y profesionales de diseño y desarrollo web.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

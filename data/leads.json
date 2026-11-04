@@ -1,0 +1,98 @@
+[
+  {
+    "id": "lead-momo-01",
+    "companyName": "Momo Design Studio S.L. (沫沫设计工作室)",
+    "commercialName": "Momo Studio (沫沫设计)",
+    "contactPerson": "Momo (沫沫)",
+    "currentWebsite": "https://momo-design-studio.com",
+    "socialUrl": "小红书号: momo_design_es",
+    "sector": "Diseño y Creatividad",
+    "location": "Madrid (Centro)",
+    "email": "momo@momo-design-studio.com",
+    "phone": "+34 688 23 45 67",
+    "channel": "Redbook (小红书)",
+    "leadSource": "Redbook (Inbound - Nos contactan)",
+    "createdAt": "2026-10-15",
+    "firstContactDate": "2026-10-16",
+    "lastContactDate": "2026-10-20",
+    "contactTone": "cercano",
+    "isPendingContact": false,
+    "offeredService": "Rediseño web corporativo",
+    "estimatedBudget": null,
+    "potentialValue": 3500,
+    "priority": "Alta",
+    "assignedTo": "Alex M.",
+    "notes": "Nos contactó por mensaje privado en Xiaohongshu interesada en renovar su portfolio web con estética minimalista y bilingüe chino-español.",
+    "nextFollowUpDate": "2026-11-06",
+    "status": 2,
+    "demoScheduledDate": "2026-11-08 17:00",
+    "detectedNeeds": "Web portfolio con carga rápida en China y España, diseño aesthetic y formulario de captación para marcas de moda.",
+    "relevantValueProp": "Diseño responsive de alta gama con CDN dual para que cargue veloz tanto en Europa como en China.",
+    "followUpsCount": 2,
+    "doNotContact": false,
+    "isArchived": false,
+    "transitions": [
+      {
+        "id": "tr-momo-01",
+        "fromStatus": 0,
+        "toStatus": 1,
+        "date": "2026-10-16",
+        "durationDays": 1,
+        "notes": "Respuesta inicial vía Redbook DM"
+      },
+      {
+        "id": "tr-momo-02",
+        "fromStatus": 1,
+        "toStatus": 2,
+        "date": "2026-10-20",
+        "durationDays": 4,
+        "notes": "Acordó fecha para ver la propuesta de demo"
+      }
+    ],
+    "interactions": [
+      {
+        "id": "msg-momo-01",
+        "date": "2026-10-16",
+        "channel": "Redbook (小红书)",
+        "messageType": "inicial",
+        "body": "你好Momo！看到你们小红书发布的设计作品集非常惊艳，排版和审美很有质感。不过目前在手机端打开个人网站加载稍有延迟，我们做过多语言设计独立站，针对欧美和国内都有专门的CDN加速方案...",
+        "responseReceived": true,
+        "responseDate": "2026-10-17",
+        "responseText": "你好呀！确实有客户反馈在国内打开有点卡，你们是怎么收费的？有案例可以发来看看吗？",
+        "interactionResult": "Respuesta positiva",
+        "toneAnalysis": {
+          "primaryTones": [
+            {
+              "tone": "cercano",
+              "score": 90
+            },
+            {
+              "tone": "personalizado",
+              "score": 85
+            }
+          ],
+          "secondaryTones": [
+            {
+              "tone": "profesional",
+              "score": 70
+            }
+          ],
+          "structure": "Halago genuino + Detección de problema + Propuesta de valor",
+          "hookType": "Elogio de portfolio y auditoría técnica de velocidad CDN",
+          "length": {
+            "words": 52,
+            "characters": 340,
+            "estimatedReadingSeconds": 15
+          },
+          "personalizationLevel": "Alta (Específico de su web/negocio)",
+          "ctaType": "Fricción baja",
+          "valueProposition": "Portfolio ultra rápido con doble CDN para España y China",
+          "aiReasoning": "Tono cercano y respetuoso en chino simplificado que conecta con creadores visuales.",
+          "analyzerVersion": "Nimbus-Tone-v3.8",
+          "analyzedAt": "2026-10-16T11:00:00Z"
+        }
+      }
+    ],
+    "isDemo": false
+  }
+]
