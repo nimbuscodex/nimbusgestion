@@ -9,8 +9,9 @@ import {
   LeadOrigin,
   AppSettings 
 } from '../types';
-import { X, AlertTriangle, UserPlus, MapPin, Radio } from 'lucide-react';
+import { X, AlertTriangle, UserPlus, MapPin, Radio, Clock, CalendarClock, Repeat } from 'lucide-react';
 import { checkDuplicateLead } from '../services/storage';
+import { calculateScheduleDate, formatScheduleBadge } from '../utils/dateSchedule';
 
 interface NewLeadModalProps {
   allLeads: Lead[];
@@ -37,6 +38,13 @@ export const NewLeadModal: React.FC<NewLeadModalProps> = ({
   const [channel, setChannel] = useState<OutreachChannel>('Redbook (小红书)');
   const [leadSource, setLeadSource] = useState<LeadOrigin>('Redbook (Inbound - Nos contactan)');
   const [isPendingContact, setIsPendingContact] = useState<boolean>(true);
+  const [contactSchedulePreset, setContactSchedulePreset] = useState<'1_week' | '1_month' | 'tomorrow' | 'custom'>('1_week');
+  const [scheduledContactDate, setScheduledContactDate] = useState<string>(calculateScheduleDate('1_week'));
+
+  const [isPendingFollowUp, setIsPendingFollowUp] = useState<boolean>(false);
+  const [followUpSchedulePreset, setFollowUpSchedulePreset] = useState<'1_week' | '1_month' | 'tomorrow' | 'custom'>('1_week');
+  const [scheduledFollowUpDate, setScheduledFollowUpDate] = useState<string>(calculateScheduleDate('1_week'));
+
   const [contactTone, setContactTone] = useState<string>('Consultivo');
   const [offeredService, setOfferedService] = useState<ServiceOffered>('Rediseño web corporativo');
   
@@ -79,6 +87,11 @@ export const NewLeadModal: React.FC<NewLeadModalProps> = ({
       channel,
       leadSource,
       isPendingContact,
+      contactSchedulePreset: isPendingContact ? contactSchedulePreset : undefined,
+      scheduledContactDate: isPendingContact ? scheduledContactDate : undefined,
+      isPendingFollowUp,
+      followUpSchedulePreset: isPendingFollowUp ? followUpSchedulePreset : undefined,
+      scheduledFollowUpDate: isPendingFollowUp ? scheduledFollowUpDate : undefined,
       contactTone,
       offeredService,
       estimatedBudget: finalBudget,
@@ -86,7 +99,7 @@ export const NewLeadModal: React.FC<NewLeadModalProps> = ({
       priority,
       assignedTo,
       notes: notes.trim(),
-      nextFollowUpDate,
+      nextFollowUpDate: isPendingFollowUp && scheduledFollowUpDate ? scheduledFollowUpDate : nextFollowUpDate,
       status,
       createdAt: new Date().toISOString().split('T')[0],
       firstContactDate: isPendingContact ? '' : new Date().toISOString().split('T')[0],
@@ -382,21 +395,239 @@ export const NewLeadModal: React.FC<NewLeadModalProps> = ({
           </div>
         </div>
 
-        {/* Pendiente de contactar toggle */}
-        <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200/80 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs text-amber-950 font-medium">
-            <Radio className="w-4 h-4 text-amber-600" />
-            <span>¿Marcar como pendiente de contactar?</span>
+        {/* Card 1: Contacto Inicial & Programación (1 semana, 1 mes) */}
+        <div className="p-4 rounded-xl bg-amber-50/80 border border-amber-200/90 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2 text-xs text-amber-950 font-bold">
+                <Clock className="w-4 h-4 text-amber-600" />
+                <span>Estado de Contacto Inicial (Selección Manual):</span>
+              </div>
+              <p className="text-[11px] text-amber-800 mt-0.5">
+                {isPendingContact 
+                  ? 'Guardando como PENDIENTE de contactar. Selecciona cuándo contactarle (1 semana, 1 mes, etc.):' 
+                  : 'Guardando como YA CONTACTADO inicialmente.'}
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 bg-white p-1 rounded-lg border border-amber-200 shrink-0 shadow-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsPendingContact(true);
+                  if (!scheduledContactDate) {
+                    setScheduledContactDate(calculateScheduleDate('1_week'));
+                  }
+                }}
+                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer flex items-center gap-1.5 ${
+                  isPendingContact
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                <span>⏳ Pendiente de contactar</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsPendingContact(false)}
+                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer flex items-center gap-1.5 ${
+                  !isPendingContact
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                <span>✓ Ya contactado</span>
+              </button>
+            </div>
           </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={isPendingContact}
-              onChange={(e) => setIsPendingContact(e.target.checked)}
-              className="sr-only peer"
-            />
-            <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600"></div>
-          </label>
+
+          {isPendingContact && (
+            <div className="pt-2 border-t border-amber-200/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-white/70 p-3 rounded-lg">
+              <div>
+                <span className="text-xs font-semibold text-amber-950 block">¿Cuándo contactar?</span>
+                <p className="text-[11px] text-amber-800">
+                  Programado:{' '}
+                  <strong className="text-amber-950 font-mono">
+                    {formatScheduleBadge(scheduledContactDate, 'Contactar').label}
+                  </strong>
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1 bg-amber-100/90 p-0.5 rounded-lg border border-amber-200">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setContactSchedulePreset('1_week');
+                      setScheduledContactDate(calculateScheduleDate('1_week'));
+                    }}
+                    className={`px-2.5 py-1 text-xs rounded-md font-semibold transition-all cursor-pointer ${
+                      contactSchedulePreset === '1_week'
+                        ? 'bg-amber-600 text-white shadow-xs'
+                        : 'text-amber-900 hover:bg-amber-200'
+                    }`}
+                  >
+                    📅 En 1 semana
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setContactSchedulePreset('1_month');
+                      setScheduledContactDate(calculateScheduleDate('1_month'));
+                    }}
+                    className={`px-2.5 py-1 text-xs rounded-md font-semibold transition-all cursor-pointer ${
+                      contactSchedulePreset === '1_month'
+                        ? 'bg-amber-600 text-white shadow-xs'
+                        : 'text-amber-900 hover:bg-amber-200'
+                    }`}
+                  >
+                    🗓️ En 1 mes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setContactSchedulePreset('tomorrow');
+                      setScheduledContactDate(calculateScheduleDate('tomorrow'));
+                    }}
+                    className={`px-2 py-1 text-xs rounded-md font-semibold transition-all cursor-pointer ${
+                      contactSchedulePreset === 'tomorrow'
+                        ? 'bg-amber-600 text-white shadow-xs'
+                        : 'text-amber-900 hover:bg-amber-200'
+                    }`}
+                  >
+                    ⚡ Mañana
+                  </button>
+                </div>
+
+                <input
+                  type="date"
+                  value={scheduledContactDate}
+                  onChange={(e) => {
+                    setContactSchedulePreset('custom');
+                    setScheduledContactDate(e.target.value);
+                  }}
+                  className="bg-white border border-amber-300 text-slate-800 text-xs rounded-lg px-2 py-1 font-mono focus:outline-none focus:ring-1 focus:ring-amber-500 shadow-xs"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Card 2: Seguimiento Comercial & Programación */}
+        <div className="p-4 rounded-xl bg-purple-50/80 border border-purple-200/90 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2 text-xs text-purple-950 font-bold">
+                <CalendarClock className="w-4 h-4 text-purple-600" />
+                <span>Seguimiento Comercial (Selección Manual):</span>
+              </div>
+              <p className="text-[11px] text-purple-800 mt-0.5">
+                {isPendingFollowUp 
+                  ? 'Marcado como PENDIENTE de seguimiento. Selecciona cuándo programarlo:' 
+                  : 'Sin seguimiento comercial pendiente.'}
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 bg-white p-1 rounded-lg border border-purple-200 shrink-0 shadow-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsPendingFollowUp(true);
+                  if (!scheduledFollowUpDate) {
+                    setScheduledFollowUpDate(calculateScheduleDate('1_week'));
+                  }
+                }}
+                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer flex items-center gap-1.5 ${
+                  isPendingFollowUp
+                    ? 'bg-purple-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                <Repeat className="w-3.5 h-3.5" />
+                <span>🔄 Pendiente de seguimiento</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsPendingFollowUp(false)}
+                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer flex items-center gap-1.5 ${
+                  !isPendingFollowUp
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                <span>✓ Al día</span>
+              </button>
+            </div>
+          </div>
+
+          {isPendingFollowUp && (
+            <div className="pt-2 border-t border-purple-200/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-white/70 p-3 rounded-lg">
+              <div>
+                <span className="text-xs font-semibold text-purple-950 block">¿Cuándo hacer el seguimiento?</span>
+                <p className="text-[11px] text-purple-800">
+                  Programado:{' '}
+                  <strong className="text-purple-950 font-mono">
+                    {formatScheduleBadge(scheduledFollowUpDate, 'Seguimiento').label}
+                  </strong>
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1 bg-purple-100/90 p-0.5 rounded-lg border border-purple-200">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFollowUpSchedulePreset('1_week');
+                      setScheduledFollowUpDate(calculateScheduleDate('1_week'));
+                    }}
+                    className={`px-2.5 py-1 text-xs rounded-md font-semibold transition-all cursor-pointer ${
+                      followUpSchedulePreset === '1_week'
+                        ? 'bg-purple-600 text-white shadow-xs'
+                        : 'text-purple-900 hover:bg-purple-200'
+                    }`}
+                  >
+                    📅 En 1 semana
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFollowUpSchedulePreset('1_month');
+                      setScheduledFollowUpDate(calculateScheduleDate('1_month'));
+                    }}
+                    className={`px-2.5 py-1 text-xs rounded-md font-semibold transition-all cursor-pointer ${
+                      followUpSchedulePreset === '1_month'
+                        ? 'bg-purple-600 text-white shadow-xs'
+                        : 'text-purple-900 hover:bg-purple-200'
+                    }`}
+                  >
+                    🗓️ En 1 mes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFollowUpSchedulePreset('tomorrow');
+                      setScheduledFollowUpDate(calculateScheduleDate('tomorrow'));
+                    }}
+                    className={`px-2 py-1 text-xs rounded-md font-semibold transition-all cursor-pointer ${
+                      followUpSchedulePreset === 'tomorrow'
+                        ? 'bg-purple-600 text-white shadow-xs'
+                        : 'text-purple-900 hover:bg-purple-200'
+                    }`}
+                  >
+                    ⚡ Mañana
+                  </button>
+                </div>
+
+                <input
+                  type="date"
+                  value={scheduledFollowUpDate}
+                  onChange={(e) => {
+                    setFollowUpSchedulePreset('custom');
+                    setScheduledFollowUpDate(e.target.value);
+                  }}
+                  className="bg-white border border-purple-300 text-slate-800 text-xs rounded-lg px-2 py-1 font-mono focus:outline-none focus:ring-1 focus:ring-purple-500 shadow-xs"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         <div>

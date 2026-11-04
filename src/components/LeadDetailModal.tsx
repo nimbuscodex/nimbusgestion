@@ -34,10 +34,14 @@ import {
   Radio,
   ExternalLink,
   MessageSquare,
-  Check
+  Check,
+  CalendarClock,
+  Repeat,
+  ChevronRight
 } from 'lucide-react';
 import { analyzeMessageToneAPI, getObjectionAdviceAPI } from '../services/api';
 import { checkDuplicateLead } from '../services/storage';
+import { calculateScheduleDate, formatScheduleBadge } from '../utils/dateSchedule';
 
 interface LeadDetailModalProps {
   lead: Lead;
@@ -107,6 +111,65 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   const handleSaveGeneral = () => {
     onSaveLead(formData);
     setIsEditing(false);
+  };
+
+  // Manual toggle and scheduling for Pendiente de contactar
+  const handleTogglePendingContact = (
+    explicitValue?: boolean,
+    preset?: 'tomorrow' | '1_week' | '1_month' | '2_weeks' | 'custom' | string,
+    explicitDate?: string
+  ) => {
+    const nextVal = typeof explicitValue === 'boolean' ? explicitValue : !formData.isPendingContact;
+    let targetDate = explicitDate;
+    const selectedPreset = preset || formData.contactSchedulePreset || '1_week';
+
+    if (nextVal) {
+      if (!targetDate) {
+        targetDate = calculateScheduleDate(selectedPreset);
+      }
+    } else {
+      targetDate = undefined;
+    }
+
+    const updated: Lead = {
+      ...formData,
+      isPendingContact: nextVal,
+      contactSchedulePreset: nextVal ? selectedPreset : undefined,
+      scheduledContactDate: targetDate,
+      firstContactDate: nextVal ? '' : (formData.firstContactDate || new Date().toISOString().split('T')[0]),
+      lastContactDate: nextVal ? undefined : (formData.lastContactDate || new Date().toISOString().split('T')[0]),
+    };
+    setFormData(updated);
+    onSaveLead(updated);
+  };
+
+  // Manual toggle and scheduling for Pendiente de seguimiento
+  const handleTogglePendingFollowUp = (
+    explicitValue?: boolean,
+    preset?: 'tomorrow' | '1_week' | '1_month' | '2_weeks' | 'custom' | string,
+    explicitDate?: string
+  ) => {
+    const nextVal = typeof explicitValue === 'boolean' ? explicitValue : !formData.isPendingFollowUp;
+    let targetDate = explicitDate;
+    const selectedPreset = preset || formData.followUpSchedulePreset || '1_week';
+
+    if (nextVal) {
+      if (!targetDate) {
+        targetDate = calculateScheduleDate(selectedPreset);
+      }
+    } else {
+      targetDate = undefined;
+    }
+
+    const updated: Lead = {
+      ...formData,
+      isPendingFollowUp: nextVal,
+      followUpSchedulePreset: nextVal ? selectedPreset : undefined,
+      scheduledFollowUpDate: targetDate,
+      nextFollowUpDate: targetDate || formData.nextFollowUpDate,
+    };
+    setFormData(updated);
+    onSaveLead(updated);
   };
 
   // Add rejection keyword
@@ -363,12 +426,24 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
     }
   };
 
-  const getStatusBadge = (status: CommercialStatus, isPending?: boolean) => {
+  const getStatusBadge = (status: CommercialStatus, isPending?: boolean, scheduledDate?: string) => {
     if (isPending) {
+      const scheduleInfo = scheduledDate ? formatScheduleBadge(scheduledDate, 'Contactar') : null;
       return (
-        <span className="text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1.5">
+        <span className="text-amber-900 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1.5 shadow-xs">
           <Clock className="w-3.5 h-3.5 text-amber-600" />
           <span>Pendiente de contactar</span>
+          {scheduleInfo && (
+            <span className={`text-[10px] px-1.5 py-0.2 rounded font-medium ${
+              scheduleInfo.isOverdue
+                ? 'bg-rose-100 text-rose-700'
+                : scheduleInfo.isToday
+                ? 'bg-amber-200 text-amber-900 font-bold'
+                : 'bg-amber-100 text-amber-800'
+            }`}>
+              {scheduleInfo.shortLabel}
+            </span>
+          )}
         </span>
       );
     }
@@ -399,7 +474,24 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
               <h2 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
                 {formData.commercialName || formData.companyName}
               </h2>
-              {getStatusBadge(formData.status, formData.isPendingContact)}
+              {getStatusBadge(formData.status, formData.isPendingContact, formData.scheduledContactDate)}
+              {formData.isPendingFollowUp && (
+                <span className="text-purple-900 bg-purple-50 border border-purple-200 px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1.5 shadow-xs">
+                  <CalendarClock className="w-3.5 h-3.5 text-purple-600" />
+                  <span>Pendiente de seguimiento</span>
+                  {formData.scheduledFollowUpDate && (
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded font-medium ${
+                      formatScheduleBadge(formData.scheduledFollowUpDate).isOverdue
+                        ? 'bg-rose-100 text-rose-700'
+                        : formatScheduleBadge(formData.scheduledFollowUpDate).isToday
+                        ? 'bg-purple-200 text-purple-950 font-bold'
+                        : 'bg-purple-100 text-purple-800'
+                    }`}>
+                      {formatScheduleBadge(formData.scheduledFollowUpDate, 'Seguimiento').shortLabel}
+                    </span>
+                  )}
+                </span>
+              )}
               {formData.doNotContact && (
                 <span className="text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded">
                   Lista Robinson (RGPD)
@@ -498,14 +590,118 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
             })}
           </div>
 
-          <button
-            type="button"
-            onClick={() => handleOpenChangeStatus(formData.status)}
-            className="px-2.5 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 border border-indigo-200 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer bg-white"
-          >
-            <FileEdit className="w-3 h-3 text-indigo-600" />
-            <span>Editar Estado & Motivo</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Pendiente de contactar with 1 sem / 1 mes quick presets */}
+            {formData.isPendingContact ? (
+              <div className="flex items-center gap-1 bg-amber-50 border border-amber-300 rounded-lg p-0.5 shadow-xs">
+                <button
+                  type="button"
+                  onClick={() => handleTogglePendingContact(false)}
+                  className="px-2 py-1 text-xs font-bold text-amber-950 hover:bg-amber-100 rounded flex items-center gap-1.5 cursor-pointer transition-colors"
+                  title="Haz clic para marcar como YA contactado"
+                >
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                  <span>⏳ Pendiente</span>
+                </button>
+                <div className="flex items-center border-l border-amber-200 pl-1 gap-1 text-[10px]">
+                  <button
+                    type="button"
+                    onClick={() => handleTogglePendingContact(true, '1_week')}
+                    className={`px-1.5 py-0.5 rounded font-semibold transition-colors cursor-pointer ${
+                      formData.contactSchedulePreset === '1_week'
+                        ? 'bg-amber-600 text-white shadow-xs'
+                        : 'text-amber-800 hover:bg-amber-100'
+                    }`}
+                    title="Programar para contactar en 1 semana"
+                  >
+                    1 sem
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleTogglePendingContact(true, '1_month')}
+                    className={`px-1.5 py-0.5 rounded font-semibold transition-colors cursor-pointer ${
+                      formData.contactSchedulePreset === '1_month'
+                        ? 'bg-amber-600 text-white shadow-xs'
+                        : 'text-amber-800 hover:bg-amber-100'
+                    }`}
+                    title="Programar para contactar en 1 mes"
+                  >
+                    1 mes
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => handleTogglePendingContact(true, '1_week')}
+                className="px-2.5 py-1 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer border shadow-xs bg-white border-slate-200 text-slate-600 hover:border-amber-300 hover:text-amber-900"
+                title="Marcar como pendiente de contactar (se programará a 1 semana por defecto)"
+              >
+                <span className="w-2 h-2 rounded-full bg-slate-300" />
+                <span>⏳ Pendiente contactar</span>
+              </button>
+            )}
+
+            {/* Pendiente de seguimiento with 1 sem / 1 mes quick presets */}
+            {formData.isPendingFollowUp ? (
+              <div className="flex items-center gap-1 bg-purple-50 border border-purple-300 rounded-lg p-0.5 shadow-xs">
+                <button
+                  type="button"
+                  onClick={() => handleTogglePendingFollowUp(false)}
+                  className="px-2 py-1 text-xs font-bold text-purple-950 hover:bg-purple-100 rounded flex items-center gap-1.5 cursor-pointer transition-colors"
+                  title="Haz clic para marcar como seguimiento al día"
+                >
+                  <CalendarClock className="w-3.5 h-3.5 text-purple-600" />
+                  <span>🔄 Seguimiento</span>
+                </button>
+                <div className="flex items-center border-l border-purple-200 pl-1 gap-1 text-[10px]">
+                  <button
+                    type="button"
+                    onClick={() => handleTogglePendingFollowUp(true, '1_week')}
+                    className={`px-1.5 py-0.5 rounded font-semibold transition-colors cursor-pointer ${
+                      formData.followUpSchedulePreset === '1_week'
+                        ? 'bg-purple-600 text-white shadow-xs'
+                        : 'text-purple-800 hover:bg-purple-100'
+                    }`}
+                    title="Programar seguimiento en 1 semana"
+                  >
+                    1 sem
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleTogglePendingFollowUp(true, '1_month')}
+                    className={`px-1.5 py-0.5 rounded font-semibold transition-colors cursor-pointer ${
+                      formData.followUpSchedulePreset === '1_month'
+                        ? 'bg-purple-600 text-white shadow-xs'
+                        : 'text-purple-800 hover:bg-purple-100'
+                    }`}
+                    title="Programar seguimiento en 1 mes"
+                  >
+                    1 mes
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => handleTogglePendingFollowUp(true, '1_week')}
+                className="px-2.5 py-1 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer border shadow-xs bg-white border-slate-200 text-slate-600 hover:border-purple-300 hover:text-purple-900"
+                title="Marcar como pendiente de seguimiento (se programará a 1 semana por defecto)"
+              >
+                <Repeat className="w-3.5 h-3.5 text-slate-400" />
+                <span>🔄 Pendiente seguimiento</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => handleOpenChangeStatus(formData.status)}
+              className="px-2.5 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 border border-indigo-200 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer bg-white"
+            >
+              <FileEdit className="w-3 h-3 text-indigo-600" />
+              <span>Editar Estado & Motivo</span>
+            </button>
+          </div>
         </div>
 
         {/* Duplicate Warning */}
@@ -897,32 +1093,230 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                 </div>
               </div>
 
-              {/* Pendiente de contactar status row */}
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                <div>
-                  <span className="font-semibold text-slate-800 block">Estado de Prospección Inicial</span>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    {formData.isPendingContact 
-                      ? 'Prospecto marcado como pendiente de primer contacto.' 
-                      : 'Prospecto ya abordado inicialmente con mensaje registrado.'}
-                  </p>
-                </div>
-                {isEditing ? (
-                  <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
-                    <input
-                      type="checkbox"
-                      checked={!!formData.isPendingContact}
-                      onChange={(e) => handleFieldChange('isPendingContact', e.target.checked)}
-                      className="rounded border-slate-300 text-amber-600 focus:ring-amber-500"
-                    />
-                    <span>Pendiente de contactar</span>
-                  </label>
-                ) : (
-                  formData.isPendingContact && (
-                    <span className="px-2.5 py-1 rounded bg-amber-100 text-amber-800 text-xs font-semibold">
-                      Pendiente de contactar
+              {/* Card 1: Contacto Inicial & Programación (1 semana, 1 mes, etc.) */}
+              <div className="p-4 rounded-xl bg-amber-50/60 border border-amber-200/90 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <span className="font-bold text-amber-950 block text-xs flex items-center gap-1.5">
+                      <Clock className="w-4 h-4 text-amber-600" />
+                      <span>Contacto Inicial</span>
+                      <span className="text-[10px] text-amber-700 font-normal">(Selección manual)</span>
                     </span>
-                  )
+                    <p className="text-[11px] text-amber-800 mt-0.5">
+                      {formData.isPendingContact 
+                        ? 'Marcado como PENDIENTE de primer contacto. Selecciona cuándo contactar (1 semana, 1 mes, etc.):' 
+                        : 'Marcado como YA CONTACTADO inicialmente.'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white p-1 rounded-lg border border-amber-200 shrink-0 shadow-xs">
+                    <button
+                      type="button"
+                      onClick={() => handleTogglePendingContact(true, formData.contactSchedulePreset || '1_week')}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1.5 ${
+                        formData.isPendingContact
+                          ? 'bg-amber-600 text-white shadow-xs font-bold'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span>⏳ Pendiente de contactar</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleTogglePendingContact(false)}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1.5 ${
+                        !formData.isPendingContact
+                          ? 'bg-emerald-600 text-white shadow-xs font-bold'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span>✓ Ya contactado</span>
+                    </button>
+                  </div>
+                </div>
+
+                {formData.isPendingContact && (
+                  <div className="pt-2 border-t border-amber-200/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/70 p-3 rounded-lg">
+                    <div>
+                      <span className="text-xs font-semibold text-amber-950 block">¿Cuándo contactar?</span>
+                      <p className="text-[11px] text-amber-800">
+                        {formData.scheduledContactDate ? (
+                          <>
+                            Programado para:{' '}
+                            <strong className="text-amber-950 font-mono">
+                              {formatScheduleBadge(formData.scheduledContactDate, 'Contactar').label}
+                            </strong>
+                          </>
+                        ) : (
+                          'Selecciona un plazo para contactar a este cliente:'
+                        )}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex items-center gap-1 bg-amber-100/80 p-0.5 rounded-lg border border-amber-200">
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePendingContact(true, '1_week')}
+                          className={`px-2.5 py-1 text-xs rounded-md font-semibold transition-all cursor-pointer ${
+                            formData.contactSchedulePreset === '1_week'
+                              ? 'bg-amber-600 text-white shadow-xs'
+                              : 'text-amber-900 hover:bg-amber-200'
+                          }`}
+                          title="Programar para dentro de 1 semana (+7 días)"
+                        >
+                          📅 En 1 semana
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePendingContact(true, '1_month')}
+                          className={`px-2.5 py-1 text-xs rounded-md font-semibold transition-all cursor-pointer ${
+                            formData.contactSchedulePreset === '1_month'
+                              ? 'bg-amber-600 text-white shadow-xs'
+                              : 'text-amber-900 hover:bg-amber-200'
+                          }`}
+                          title="Programar para dentro de 1 mes (+30 días)"
+                        >
+                          🗓️ En 1 mes
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePendingContact(true, 'tomorrow')}
+                          className={`px-2 py-1 text-xs rounded-md font-semibold transition-all cursor-pointer ${
+                            formData.contactSchedulePreset === 'tomorrow'
+                              ? 'bg-amber-600 text-white shadow-xs'
+                              : 'text-amber-900 hover:bg-amber-200'
+                          }`}
+                          title="Programar para mañana (+1 día)"
+                        >
+                          ⚡ Mañana
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="date"
+                          value={formData.scheduledContactDate || ''}
+                          onChange={(e) => handleTogglePendingContact(true, 'custom', e.target.value)}
+                          className="bg-white border border-amber-300 text-slate-800 text-xs rounded-lg px-2 py-1 font-mono focus:outline-none focus:ring-1 focus:ring-amber-500 shadow-xs"
+                          title="O selecciona una fecha personalizada"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Card 2: Seguimiento Comercial & Programación (Pendiente de seguimiento) */}
+              <div className="p-4 rounded-xl bg-purple-50/60 border border-purple-200/90 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <span className="font-bold text-purple-950 block text-xs flex items-center gap-1.5">
+                      <CalendarClock className="w-4 h-4 text-purple-600" />
+                      <span>Seguimiento Comercial</span>
+                      <span className="text-[10px] text-purple-700 font-normal">(Selección manual)</span>
+                    </span>
+                    <p className="text-[11px] text-purple-800 mt-0.5">
+                      {formData.isPendingFollowUp 
+                        ? 'Marcado como PENDIENTE de seguimiento. Selecciona cuándo retomar la conversación:' 
+                        : 'Seguimiento comercial al día.'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white p-1 rounded-lg border border-purple-200 shrink-0 shadow-xs">
+                    <button
+                      type="button"
+                      onClick={() => handleTogglePendingFollowUp(true, formData.followUpSchedulePreset || '1_week')}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1.5 ${
+                        formData.isPendingFollowUp
+                          ? 'bg-purple-600 text-white shadow-xs font-bold'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                      }`}
+                    >
+                      <Repeat className="w-3.5 h-3.5" />
+                      <span>🔄 Pendiente de seguimiento</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleTogglePendingFollowUp(false)}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1.5 ${
+                        !formData.isPendingFollowUp
+                          ? 'bg-emerald-600 text-white shadow-xs font-bold'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span>✓ Seguimiento al día</span>
+                    </button>
+                  </div>
+                </div>
+
+                {formData.isPendingFollowUp && (
+                  <div className="pt-2 border-t border-purple-200/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/70 p-3 rounded-lg">
+                    <div>
+                      <span className="text-xs font-semibold text-purple-950 block">¿Cuándo hacer el seguimiento?</span>
+                      <p className="text-[11px] text-purple-800">
+                        {formData.scheduledFollowUpDate ? (
+                          <>
+                            Programado para:{' '}
+                            <strong className="text-purple-950 font-mono">
+                              {formatScheduleBadge(formData.scheduledFollowUpDate, 'Seguimiento').label}
+                            </strong>
+                          </>
+                        ) : (
+                          'Selecciona cuándo hacer el seguimiento:'
+                        )}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex items-center gap-1 bg-purple-100/80 p-0.5 rounded-lg border border-purple-200">
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePendingFollowUp(true, '1_week')}
+                          className={`px-2.5 py-1 text-xs rounded-md font-semibold transition-all cursor-pointer ${
+                            formData.followUpSchedulePreset === '1_week'
+                              ? 'bg-purple-600 text-white shadow-xs'
+                              : 'text-purple-900 hover:bg-purple-200'
+                          }`}
+                          title="Seguimiento en 1 semana (+7 días)"
+                        >
+                          📅 En 1 semana
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePendingFollowUp(true, '1_month')}
+                          className={`px-2.5 py-1 text-xs rounded-md font-semibold transition-all cursor-pointer ${
+                            formData.followUpSchedulePreset === '1_month'
+                              ? 'bg-purple-600 text-white shadow-xs'
+                              : 'text-purple-900 hover:bg-purple-200'
+                          }`}
+                          title="Seguimiento en 1 mes (+30 días)"
+                        >
+                          🗓️ En 1 mes
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePendingFollowUp(true, 'tomorrow')}
+                          className={`px-2 py-1 text-xs rounded-md font-semibold transition-all cursor-pointer ${
+                            formData.followUpSchedulePreset === 'tomorrow'
+                              ? 'bg-purple-600 text-white shadow-xs'
+                              : 'text-purple-900 hover:bg-purple-200'
+                          }`}
+                          title="Seguimiento mañana (+1 día)"
+                        >
+                          ⚡ Mañana
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="date"
+                          value={formData.scheduledFollowUpDate || ''}
+                          onChange={(e) => handleTogglePendingFollowUp(true, 'custom', e.target.value)}
+                          className="bg-white border border-purple-300 text-slate-800 text-xs rounded-lg px-2 py-1 font-mono focus:outline-none focus:ring-1 focus:ring-purple-500 shadow-xs"
+                          title="O fecha personalizada"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
 

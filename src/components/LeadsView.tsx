@@ -26,9 +26,12 @@ import {
   Tag,
   Radio,
   Send,
-  Sparkles
+  Sparkles,
+  CalendarClock,
+  Repeat
 } from 'lucide-react';
 import { parseCSVToLeads } from '../services/storage';
+import { calculateScheduleDate, formatScheduleBadge } from '../utils/dateSchedule';
 
 interface LeadsViewProps {
   leads: Lead[];
@@ -36,7 +39,12 @@ interface LeadsViewProps {
   onNewLeadClick: () => void;
   onImportLeads: (newLeads: Partial<Lead>[]) => void;
   onExportCSV: () => void;
-  onUpdateLeadStatus?: (leadId: string, newStatus: CommercialStatus) => void;
+  onUpdateLeadStatus?: (
+    leadId: string, 
+    newStatus: CommercialStatus, 
+    additionalData?: Partial<Lead>, 
+    transitionNote?: string
+  ) => void;
   settings: AppSettings;
 }
 
@@ -55,6 +63,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
   const [originFilter, setOriginFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [pendingContactOnly, setPendingContactOnly] = useState<boolean>(false);
+  const [pendingFollowUpOnly, setPendingFollowUpOnly] = useState<boolean>(false);
   const [showArchived, setShowArchived] = useState<boolean>(false);
   
   // Sort
@@ -73,6 +82,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
         if (showArchived && !l.isArchived) return false;
 
         if (pendingContactOnly && !l.isPendingContact) return false;
+        if (pendingFollowUpOnly && !l.isPendingFollowUp) return false;
 
         if (sectorFilter !== 'all' && l.sector !== sectorFilter) return false;
         if (channelFilter !== 'all' && l.channel !== channelFilter) return false;
@@ -115,7 +125,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
         }
         return sortOrder === 'asc' ? cmp : -cmp;
       });
-  }, [leads, search, sectorFilter, channelFilter, originFilter, statusFilter, pendingContactOnly, showArchived, sortBy, sortOrder]);
+  }, [leads, search, sectorFilter, channelFilter, originFilter, statusFilter, pendingContactOnly, pendingFollowUpOnly, showArchived, sortBy, sortOrder]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -461,11 +471,33 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                           <option value={4}>E4 · Negociando</option>
                           <option value={5}>E5 · Venta cerrada</option>
                         </select>
-                        {lead.isPendingContact && (
-                          <span className="text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded text-[10px] font-medium" title="Pendiente de contactar">
-                            Pendiente
-                          </span>
-                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onUpdateLeadStatus) {
+                              const newPending = !lead.isPendingContact;
+                              onUpdateLeadStatus(
+                                lead.id,
+                                lead.status,
+                                {
+                                  isPendingContact: newPending,
+                                  firstContactDate: newPending ? (lead.firstContactDate || new Date().toISOString().split('T')[0]) : ''
+                                },
+                                newPending ? 'Marcado manualmente como pendiente de contactar' : 'Marcado manualmente como ya contactado'
+                              );
+                            }
+                          }}
+                          className={`px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 transition-all border cursor-pointer ${
+                            lead.isPendingContact
+                              ? 'text-amber-900 bg-amber-100 border-amber-300 hover:bg-amber-200 shadow-xs'
+                              : 'text-slate-500 bg-slate-50 border-slate-200 hover:bg-slate-100 hover:text-slate-800'
+                          }`}
+                          title={lead.isPendingContact ? 'Marcado como PENDIENTE. Haz clic para marcar como YA CONTACTADO' : 'Marcado como CONTACTADO. Haz clic para marcar como PENDIENTE de contactar'}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${lead.isPendingContact ? 'bg-amber-500 animate-pulse' : 'bg-slate-400'}`} />
+                          <span>{lead.isPendingContact ? 'Pendiente' : 'Contactado'}</span>
+                        </button>
                       </div>
                     </td>
 

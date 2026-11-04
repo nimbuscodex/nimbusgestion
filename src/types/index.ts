@@ -198,6 +198,13 @@ export interface Lead {
   contactTone?: string; // Tono del mensaje de contacto
   leadSource: LeadOrigin | string; // Origen del lead: si de Redbook nos contactan, si contactamos nosotros, recomendados
   isPendingContact?: boolean; // Opción: Pendiente de contactar (aún sin primer mensaje enviado)
+  contactSchedulePreset?: '1_week' | '1_month' | 'tomorrow' | 'custom' | string; // Cuándo contactar (1 semana, 1 mes, etc.)
+  scheduledContactDate?: string; // Fecha programada para contactar (YYYY-MM-DD)
+
+  isPendingFollowUp?: boolean; // Opción: Pendiente de seguimiento comercial
+  followUpSchedulePreset?: '1_week' | '1_month' | 'tomorrow' | 'custom' | string; // Cuándo hacer seguimiento (1 semana, 1 mes, etc.)
+  scheduledFollowUpDate?: string; // Fecha programada para el seguimiento (YYYY-MM-DD)
+
   offeredService: ServiceOffered;
   estimatedBudget: number | null; // Presupuesto estimado (€) o null si "Aún no especificado"
   potentialValue: number | null; // Valor potencial (€)

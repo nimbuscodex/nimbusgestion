@@ -335,11 +335,31 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
                           <h4 className="text-xs font-bold text-slate-900 group-hover:text-indigo-600 transition-colors truncate">
                             {lead.commercialName || lead.companyName}
                           </h4>
-                          {lead.isPendingContact && (
-                            <span className="text-[9px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.2 rounded shrink-0">
-                              Pendiente
-                            </span>
-                          )}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const newPending = !lead.isPendingContact;
+                              onUpdateLeadStatus(
+                                lead.id,
+                                lead.status,
+                                {
+                                  isPendingContact: newPending,
+                                  firstContactDate: newPending ? (lead.firstContactDate || new Date().toISOString().split('T')[0]) : ''
+                                },
+                                newPending ? 'Marcado manualmente como pendiente de contactar' : 'Marcado manualmente como ya contactado'
+                              );
+                            }}
+                            className={`text-[9px] font-semibold px-1.5 py-0.5 rounded transition-all shrink-0 flex items-center gap-1 border cursor-pointer ${
+                              lead.isPendingContact
+                                ? 'text-amber-900 bg-amber-100 border-amber-300 hover:bg-amber-200 shadow-xs'
+                                : 'text-slate-500 bg-slate-50 border-slate-200 hover:text-slate-800 hover:bg-slate-100'
+                            }`}
+                            title={lead.isPendingContact ? 'Marcado como PENDIENTE. Clic para marcar como YA CONTACTADO' : 'Clic para marcar como PENDIENTE de contactar'}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${lead.isPendingContact ? 'bg-amber-500 animate-pulse' : 'bg-slate-400'}`} />
+                            <span>{lead.isPendingContact ? 'Pendiente' : 'Contactar'}</span>
+                          </button>
                           {lead.doNotContact && (
                             <span className="text-[9px] font-semibold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.2 rounded shrink-0">
                               Baja
